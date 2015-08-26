@@ -45,10 +45,6 @@
 
 /* Defines */
 
-#define MXU1_DRIVER_VERSION	"1.3.0"
-#define MXU1_DRIVER_AUTHOR	"Ken Huang"
-#define MXU1_DRIVER_DESC	"MOXA UPort 11x0 USB to Serial Hub Driver"
-
 #define MXU1_FIRMWARE_BUF_SIZE	16284
 
 #define MXU1_WRITE_BUF_SIZE	1024
@@ -177,17 +173,6 @@ static int mxu1_download_firmware(struct mxu1_device *mxdev,
 static int mxu1_get_icount(struct tty_struct *tty,
 			   struct serial_icounter_struct *icount);
 
-/* circular buffer */
-static struct circ_buf *mxu1_buf_alloc(void);
-static void mxu1_buf_free(struct circ_buf *cb);
-static void mxu1_buf_clear(struct circ_buf *cb);
-static int mxu1_buf_data_avail(struct circ_buf *cb);
-static int mxu1_buf_space_avail(struct circ_buf *cb);
-
-static int mxu1_buf_put(struct mxu1_port *mxport, const char *buf, int count);
-static int mxu1_buf_get(struct circ_buf *cb, char *buf, int count);
-
-
 /* Data */
 
 /* module parameters */
@@ -195,7 +180,7 @@ static int debug;
 
 /* supported devices */
 
-static const struct usb_device_id mxu1_id_table[] = {
+static const struct usb_device_id mxuport11_idtable[] = {
 	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1110_PRODUCT_ID) },
 	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1130_PRODUCT_ID) },
 	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1150_PRODUCT_ID) },
@@ -204,240 +189,7 @@ static const struct usb_device_id mxu1_id_table[] = {
 	{ }
 };
 
-static struct usb_device_id mxu1110_id_table[] = {
-	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1110_PRODUCT_ID) },
-	{ }
-};
-
-static struct usb_device_id mxu1130_id_table[] = {
-	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1130_PRODUCT_ID) },
-	{ }
-};
-
-static struct usb_device_id mxu1150_id_table[] = {
-	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1150_PRODUCT_ID) },
-	{ }
-};
-
-static struct usb_device_id mxu1151_id_table[] = {
-	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1151_PRODUCT_ID) },
-	{ }
-};
-
-static struct usb_device_id mxu1131_id_table[] = {
-	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1131_PRODUCT_ID) },
-	{ }
-};
-
-static struct usb_serial_driver mxu1110_1port_device = {
-	.driver = {
-		.owner		= THIS_MODULE,
-		.name		= "mxu1110",
-	},
-	.description		= "MOXA UPort 1110",
-	.id_table		= mxu1110_id_table,
-	.num_ports		= 1,
-	.attach			= mxu1_startup,
-
-#ifdef ASYNCB_FIRST_KERNEL
-	.disconnect		= mxu1_disconnect,
-	.release		= mxu1_release,
-#else
-	.shutdown		= mxu1_shutdown,
-#endif
-	.open			= mxu1_open,
-	.close			= mxu1_close,
-	.write			= mxu1_write,
-	.write_room		= mxu1_write_room,
-	.chars_in_buffer	= mxu1_chars_in_buffer,
-	.throttle		= mxu1_throttle,
-	.unthrottle		= mxu1_unthrottle,
-	.ioctl			= mxu1_ioctl,
-	.set_termios		= mxu1_set_termios,
-	.tiocmget		= mxu1_tiocmget,
-	.tiocmset		= mxu1_tiocmset,
-	.get_icount		= mxu1_get_icount,
-	.break_ctl		= mxu1_break,
-	.read_int_callback	= mxu1_interrupt_callback,
-	.read_bulk_callback	= mxu1_bulk_in_callback,
-	.write_bulk_callback	= mxu1_bulk_out_callback,
-};
-
-static struct usb_serial_driver mxu1130_1port_device = {
-	.driver = {
-		.owner		= THIS_MODULE,
-		.name		= "mxu1130",
-	},
-	.description		= "MOXA UPort 1130",
-	.id_table		= mxu1130_id_table,
-
-	.num_ports		= 1,
-	.attach			= mxu1_startup,
-#ifdef ASYNCB_FIRST_KERNEL
-	.disconnect		= mxu1_disconnect,
-	.release		= mxu1_release,
-#else
-	.shutdown		= mxu1_shutdown,
-#endif
-	.open			= mxu1_open,
-	.close			= mxu1_close,
-	.write			= mxu1_write,
-	.write_room		= mxu1_write_room,
-	.chars_in_buffer	= mxu1_chars_in_buffer,
-	.throttle		= mxu1_throttle,
-	.unthrottle		= mxu1_unthrottle,
-	.ioctl			= mxu1_ioctl,
-	.set_termios		= mxu1_set_termios,
-	.tiocmget		= mxu1_tiocmget,
-	.tiocmset		= mxu1_tiocmset,
-	.get_icount		= mxu1_get_icount,
-	.break_ctl		= mxu1_break,
-	.read_int_callback	= mxu1_interrupt_callback,
-	.read_bulk_callback	= mxu1_bulk_in_callback,
-	.write_bulk_callback	= mxu1_bulk_out_callback,
-};
-
-static struct usb_serial_driver mxu1150_1port_device = {
-	.driver = {
-		.owner		= THIS_MODULE,
-		.name		= "mxu1150",
-	},
-	.description		= "MOXA UPort 1150",
-	.id_table		= mxu1150_id_table,
-
-	.num_ports		= 1,
-	.attach			= mxu1_startup,
-	.open			= mxu1_open,
-#ifdef ASYNCB_FIRST_KERNEL
-	.disconnect		= mxu1_disconnect,
-	.release		= mxu1_release,
-#else
-	.shutdown		= mxu1_shutdown,
-#endif
-	.close			= mxu1_close,
-	.write			= mxu1_write,
-	.write_room		= mxu1_write_room,
-	.chars_in_buffer	= mxu1_chars_in_buffer,
-	.throttle		= mxu1_throttle,
-	.unthrottle		= mxu1_unthrottle,
-	.ioctl			= mxu1_ioctl,
-	.set_termios		= mxu1_set_termios,
-	.tiocmget		= mxu1_tiocmget,
-	.tiocmset		= mxu1_tiocmset,
-	.get_icount		= mxu1_get_icount,
-	.break_ctl		= mxu1_break,
-	.read_int_callback	= mxu1_interrupt_callback,
-	.read_bulk_callback	= mxu1_bulk_in_callback,
-	.write_bulk_callback	= mxu1_bulk_out_callback,
-};
-
-static struct usb_serial_driver mxu1151_1port_device = {
-	.driver = {
-		.owner		= THIS_MODULE,
-		.name		= "mxu1151",
-	},
-	.description		= "MOXA UPort 1150I",
-	.id_table		= mxu1151_id_table,
-
-	.num_ports		= 1,
-	.attach			= mxu1_startup,
-#ifdef ASYNCB_FIRST_KERNEL
-	.disconnect		= mxu1_disconnect,
-	.release		= mxu1_release,
-#else
-	.shutdown		= mxu1_shutdown,
-#endif
-	.open			= mxu1_open,
-	.close			= mxu1_close,
-	.write			= mxu1_write,
-	.write_room		= mxu1_write_room,
-	.chars_in_buffer	= mxu1_chars_in_buffer,
-	.throttle		= mxu1_throttle,
-	.unthrottle		= mxu1_unthrottle,
-	.ioctl			= mxu1_ioctl,
-	.set_termios		= mxu1_set_termios,
-	.tiocmget		= mxu1_tiocmget,
-	.tiocmset		= mxu1_tiocmset,
-	.get_icount		= mxu1_get_icount,
-	.break_ctl		= mxu1_break,
-	.read_int_callback	= mxu1_interrupt_callback,
-	.read_bulk_callback	= mxu1_bulk_in_callback,
-	.write_bulk_callback	= mxu1_bulk_out_callback,
-};
-static struct usb_serial_driver mxu1131_1port_device = {
-	.driver = {
-		.owner		= THIS_MODULE,
-		.name		= "mxu1131",
-	},
-	.description		= "MOXA UPort 1130I",
-	.id_table		= mxu1131_id_table,
-
-	.num_ports		= 1,
-	.attach			= mxu1_startup,
-#ifdef ASYNCB_FIRST_KERNEL
-	.disconnect		= mxu1_disconnect,
-	.release		= mxu1_release,
-#else
-	.shutdown		= mxu1_shutdown,
-#endif
-	.open			= mxu1_open,
-	.close			= mxu1_close,
-	.write			= mxu1_write,
-	.write_room		= mxu1_write_room,
-	.chars_in_buffer	= mxu1_chars_in_buffer,
-	.throttle		= mxu1_throttle,
-	.unthrottle		= mxu1_unthrottle,
-	.ioctl			= mxu1_ioctl,
-	.set_termios		= mxu1_set_termios,
-	.tiocmget		= mxu1_tiocmget,
-	.tiocmset		= mxu1_tiocmset,
-	.get_icount		= mxu1_get_icount,
-	.break_ctl		= mxu1_break,
-	.read_int_callback	= mxu1_interrupt_callback,
-	.read_bulk_callback	= mxu1_bulk_in_callback,
-	.write_bulk_callback	= mxu1_bulk_out_callback,
-};
-
-static struct usb_serial_driver * const serial_drivers[] = {
-	&mxu1110_1port_device, &mxu1130_1port_device, &mxu1150_1port_device,
-	&mxu1151_1port_device, &mxu1131_1port_device, NULL
-};
-
-/* Module */
-
-MODULE_AUTHOR(MXU1_DRIVER_AUTHOR);
-MODULE_DESCRIPTION(MXU1_DRIVER_DESC);
-MODULE_VERSION(MXU1_DRIVER_VERSION);
-MODULE_LICENSE("GPL");
-
-MODULE_DEVICE_TABLE(usb, mxu1_id_table);
-MODULE_DEVICE_TABLE(usb, mxu1110_id_table);
-MODULE_DEVICE_TABLE(usb, mxu1130_id_table);
-MODULE_DEVICE_TABLE(usb, mxu1150_id_table);
-MODULE_DEVICE_TABLE(usb, mxu1151_id_table);
-MODULE_DEVICE_TABLE(usb, mxu1131_id_table);
-
-/* Functions */
-/* TODO : remplacer par usb_serial_module_driver */
-static int __init mxu1_init(void)
-{
-	int ret;
-
-	ret = usb_serial_register_drivers(serial_drivers,
-					  KBUILD_MODNAME,
-					  mxu1_id_table);
-
-	return ret;
-}
-
-static void __exit mxu1_exit(void)
-{
-	usb_serial_deregister_drivers(serial_drivers);
-}
-
-module_init(mxu1_init);
-module_exit(mxu1_exit);
-
+MODULE_DEVICE_TABLE(usb, mxuport11_idtable);
 
 static int mxu1_startup(struct usb_serial *serial)
 {
@@ -463,7 +215,7 @@ static int mxu1_startup(struct usb_serial *serial)
 	usb_set_serial_data(serial, mxdev);
 
 	/* determine device type */
-	if (!usb_match_id(serial->interface, mxu1_id_table))
+	if (!usb_match_id(serial->interface, mxuport11_idtable))
 		return 0;
 
 	switch (dev->descriptor.idProduct) {
@@ -2220,3 +1972,48 @@ static int mxu1_buf_get(struct circ_buf *cb, char *buf, int count)
 
 	return ret;
 }
+
+static struct usb_serial_driver mxuport11_device = {
+	.driver = {
+		.owner		= THIS_MODULE,
+		.name		= "mxuport11",
+	},
+	.description		= "MOXA UPort 11xx",
+	.id_table		= mxuport11_idtable,
+	.num_ports		= 1,
+	.attach			= mxu1_startup,
+
+#ifdef ASYNCB_FIRST_KERNEL
+	.disconnect		= mxu1_disconnect,
+	.release		= mxu1_release,
+#else
+	.shutdown		= mxu1_shutdown,
+#endif
+	.open			= mxu1_open,
+	.close			= mxu1_close,
+//	.write			= mxu1_write,
+//	.write_room		= mxu1_write_room,
+//	.chars_in_buffer	= mxu1_chars_in_buffer,
+	.throttle		= mxu1_throttle,
+	.unthrottle		= mxu1_unthrottle,
+	.ioctl			= mxu1_ioctl,
+	.set_termios		= mxu1_set_termios,
+	.tiocmget		= mxu1_tiocmget,
+	.tiocmset		= mxu1_tiocmset,
+	.get_icount		= mxu1_get_icount,
+	.break_ctl		= mxu1_break,
+	.read_int_callback	= mxu1_interrupt_callback,
+//	.read_bulk_callback	= mxu1_bulk_in_callback,
+//	.write_bulk_callback	= mxu1_bulk_out_callback,
+};
+
+static struct usb_serial_driver *const serial_drivers[] = {
+    &mxuport11_device, NULL
+};
+
+module_usb_serial_driver(serial_drivers, mxuport11_idtable);
+
+MODULE_AUTHOR("Ken Huang");
+MODULE_AUTHOR("Mathieu Othacehe <m.othacehe@gmail.com>");
+MODULE_DESCRIPTION("MOXA UPort 11x0 USB to Serial Hub Driver");
+MODULE_LICENSE("GPL");
