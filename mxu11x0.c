@@ -325,62 +325,6 @@ free_mxdev:
 	return status;
 }
 
-
-#ifdef ASYNCB_FIRST_KERNEL
-
-static void mxu1_disconnect(struct usb_serial *serial)
-{
-	struct usb_serial_port *port = serial->port[0];
-
-	pr_info("%s", __func__);
-
-	usb_kill_urb(port->read_urb);
-	usb_kill_urb(port->write_urb);
-}
-
-static void mxu1_release(struct usb_serial *serial)
-{
-	int i;
-	struct mxu1_device *mxdev = usb_get_serial_data(serial);
-	struct mxu1_port *mxport;
-
-	pr_info("%s", __func__);
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		mxport = usb_get_serial_port_data(serial->port[i]);
-		if (mxport) {
-			kfree(mxport);
-			usb_set_serial_port_data(serial->port[i], NULL);
-		}
-	}
-
-	kfree(mxdev);
-	usb_set_serial_data(serial, NULL);
-}
-
-#else
-
-static void mxu1_shutdown(struct usb_serial *serial)
-{
-	int i;
-	struct mxu1_device *mxdev = usb_get_serial_data(serial);
-	struct mxu1_port *mxport;
-
-	pr_info("%s", __func__);
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		mxport = usb_get_serial_port_data(serial->port[i]);
-		if (mxport) {
-			kfree(mxport);
-			usb_set_serial_port_data(serial->port[i], NULL);
-		}
-	}
-
-	kfree(mxdev);
-	usb_set_serial_data(serial, NULL);
-}
-#endif
-
 static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct mxu1_port *mxport = usb_get_serial_port_data(port);
@@ -574,6 +518,8 @@ static void mxu1_close(struct usb_serial_port *port)
 
 	mxport->mxp_is_open = 0;
 
+	pr_info("reste %d chars", usb_serial_generic_chars_in_buffer(port->port.tty));
+	
 	mxu1_drain(mxport, (mxport->mxp_closing_wait*HZ)/100, 1);
 
 	usb_kill_urb(port->read_urb);
@@ -1020,7 +966,7 @@ static void mxu1_break(struct tty_struct *tty, int break_state)
 	if (mxport == NULL)
 		return;
 
-	mxu1_drain(mxport, (mxport->mxp_closing_wait*HZ)/100, 0);
+//	mxu1_drain(mxport, (mxport->mxp_closing_wait*HZ)/100, 0);
 
 	if (break_state == -1)
 		mxport->mxp_send_break = MXU1_LCR_BREAK;
@@ -1058,11 +1004,11 @@ static void mxu1_interrupt_callback(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		pr_info("%s - urb shutting down, %d", __func__, urb->status);
+		pr_info("!!!!!!!!!!!!!!!!!! %s - urb shutting down, %d", __func__, urb->status);
 		mxdev->mxd_urb_error = 1;
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n",
+	        dev_err(dev, "!!!!!!!!!!!! %s - nonzero urb status, %d\n",
 			__func__, urb->status);
 		mxdev->mxd_urb_error = 1;
 		goto exit;
@@ -1455,37 +1401,21 @@ static void mxu1_drain(struct mxu1_port *mxport,
 
 	pr_info("%s - port %d", __func__, port->port_number);
 
-	spin_lock_irqsave(&mxport->mxp_lock, flags);
-
-	/* wait for data to drain from the buffer */
 	mxdev->mxd_urb_error = 0;
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&mxport->mxp_write_wait, &wait);
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (kfifo_avail(&port->write_fifo) == 0
-		    || timeout == 0 || signal_pending(current)
-		    || mxdev->mxd_urb_error
-		    || !usb_get_intfdata(port->serial->interface))
-			/* disconnect */
-			break;
-		spin_unlock_irqrestore(&mxport->mxp_lock, flags);
-		timeout = schedule_timeout(timeout);
-		spin_lock_irqsave(&mxport->mxp_lock, flags);
-	}
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&mxport->mxp_write_wait, &wait);
-
-	/* flush any remaining data in the buffer */
-	if (flush)
-	    ;//mxu1_buf_clear(mxport->mxp_write_buf);
-
-	spin_unlock_irqrestore(&mxport->mxp_lock, flags);
-
+	
 	/* wait for data to drain from the device */
 	/* wait for empty tx register, plus 20 ms */
 	timeout += jiffies;
 	mxport->mxp_lsr &= ~MXU1_LSR_TX_EMPTY;
+
+	pr_info("%d %d %d %d %d",
+		(long)(jiffies - timeout) < 0,
+		!signal_pending(current),
+		!(mxport->mxp_lsr&MXU1_LSR_TX_EMPTY),
+		!mxdev->mxd_urb_error,
+		usb_get_intfdata(port->serial->interface)
+	    );
+	
 	while ((long)(jiffies - timeout) < 0 && !signal_pending(current)
 	       && !(mxport->mxp_lsr&MXU1_LSR_TX_EMPTY) && !mxdev->mxd_urb_error
 	       && usb_get_intfdata(port->serial->interface)) {
@@ -1493,6 +1423,14 @@ static void mxu1_drain(struct mxu1_port *mxport,
 		if (mxu1_get_lsr(mxport))
 			break;
 		msleep_interruptible(20);
+
+		pr_info("%d %d %d %d %d",
+			(long)(jiffies - timeout) < 0,
+			!signal_pending(current),
+			!(mxport->mxp_lsr&MXU1_LSR_TX_EMPTY),
+			!mxdev->mxd_urb_error,
+			usb_get_intfdata(port->serial->interface)
+		    );
 	}
 }
 
@@ -1522,7 +1460,7 @@ static int mxu1_restart_read(struct mxu1_port *mxport, struct tty_struct *tty)
 		mxport->mxp_read_urb_state = MXU1_READ_URB_RUNNING;
 		urb = mxport->mxp_port->read_urb;
 		spin_unlock_irqrestore(&mxport->mxp_lock, flags);
-		urb->complete = mxu1_bulk_in_callback;
+//		urb->complete = mxu1_bulk_in_callback;
 		urb->context = mxport;
 		urb->dev = mxport->mxp_port->serial->dev;
 		status = usb_submit_urb(urb, GFP_KERNEL);
@@ -1687,13 +1625,6 @@ static struct usb_serial_driver mxuport11_device = {
 	.id_table		= mxuport11_idtable,
 	.num_ports		= 1,
 	.attach			= mxu1_startup,
-
-#ifdef ASYNCB_FIRST_KERNEL
-	.disconnect		= mxu1_disconnect,
-	.release		= mxu1_release,
-#else
-	.shutdown		= mxu1_shutdown,
-#endif
 	.open			= mxu1_open,
 	.close			= mxu1_close,
 //	.write			= mxu1_write,
