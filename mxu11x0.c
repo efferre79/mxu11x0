@@ -31,31 +31,31 @@
 #include "mxu11x0r.h"
 
 struct mxu1_port {
-    int mxp_is_open;
-    __u8 mxp_msr;
-    __u8 mxp_lsr;
-    __u8 mxp_shadow_mcr;
-    __u8 mxp_uart_mode;     /* 232 or 485 modes */
-    __u8 mxp_user_get_uart_mode;
-    unsigned int mxp_uart_base_addr;
-    int mxp_flags;
-    int mxp_msr_wait_flags;
-    struct async_icount	mxp_icount;
-    wait_queue_head_t mxp_msr_wait;	/* wait for msr change */
-    struct mxu1_device *mxp_mxdev;
-    struct usb_serial_port *mxp_port;
-    spinlock_t mxp_lock;
-    int mxp_read_urb_state;
-    int mxp_write_urb_in_use;
-    int mxp_send_break;
-    int mxp_set_B0;
+	int mxp_is_open;
+	__u8 mxp_msr;
+	__u8 mxp_lsr;
+	__u8 mxp_shadow_mcr;
+	__u8 mxp_uart_mode;     /* 232 or 485 modes */
+	__u8 mxp_user_get_uart_mode;
+	unsigned int mxp_uart_base_addr;
+	int mxp_flags;
+	int mxp_msr_wait_flags;
+	struct async_icount	mxp_icount;
+	wait_queue_head_t mxp_msr_wait;	/* wait for msr change */
+	struct mxu1_device *mxp_mxdev;
+	struct usb_serial_port *mxp_port;
+	spinlock_t mxp_lock;
+	int mxp_read_urb_state;
+	int mxp_write_urb_in_use;
+	int mxp_send_break;
+	int mxp_set_B0;
 };
 
 struct mxu1_device {
-    struct mutex mxd_lock;
-    int mxd_open_port_count;
-    struct usb_serial	*mxd_serial;
-    int mxd_model_name;
+	struct mutex mxd_lock;
+	int mxd_open_port_count;
+	struct usb_serial	*mxd_serial;
+	int mxd_model_name;
 };
 
 /* supported setserial flags */
@@ -78,12 +78,12 @@ struct mxu1_device {
 #define MXU1_DEFAULT_CLOSING_WAIT   4000		/* in .01 secs */
 
 static const struct usb_device_id mxuport11_idtable[] = {
-    { USB_DEVICE(MXU1_VENDOR_ID, MXU1_1110_PRODUCT_ID) },
-    { USB_DEVICE(MXU1_VENDOR_ID, MXU1_1130_PRODUCT_ID) },
-    { USB_DEVICE(MXU1_VENDOR_ID, MXU1_1150_PRODUCT_ID) },
-    { USB_DEVICE(MXU1_VENDOR_ID, MXU1_1151_PRODUCT_ID) },
-    { USB_DEVICE(MXU1_VENDOR_ID, MXU1_1131_PRODUCT_ID) },
-    { }
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1110_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1130_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1150_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1151_PRODUCT_ID) },
+	{ USB_DEVICE(MXU1_VENDOR_ID, MXU1_1131_PRODUCT_ID) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(usb, mxuport11_idtable);
@@ -96,9 +96,9 @@ static void mxu1_recv(struct mxu1_port *mxport,
 
 /* Write the given buffer out to the control pipe.  */
 static int mxu1_send_ctrl_data_urb(struct usb_serial *serial,
-				      u8 request,
-				      u16 value, u16 index,
-				      u8 *data, size_t size)
+				   u8 request,
+				   u16 value, u16 index,
+				   u8 *data, size_t size)
 {
 	int status;
 
@@ -110,17 +110,17 @@ static int mxu1_send_ctrl_data_urb(struct usb_serial *serial,
 				 data, size,
 				 1000);
 	if (status < 0) {
-	    dev_err(&serial->interface->dev,
-		   "%s - usb_control_msg failed (%d)\n",
-		   __func__, status);
-	    return status;
+		dev_err(&serial->interface->dev,
+			"%s - usb_control_msg failed (%d)\n",
+			__func__, status);
+		return status;
 	}
 
 	if (status != size) {
-	    dev_err(&serial->interface->dev,
-		   "%s - short write (%d / %zd)\n",
-		   __func__, status, size);
-	    return -EIO;
+		dev_err(&serial->interface->dev,
+			"%s - short write (%d / %zd)\n",
+			__func__, status, size);
+		return -EIO;
 	}
 
 	return 0;
@@ -130,8 +130,8 @@ static int mxu1_send_ctrl_data_urb(struct usb_serial *serial,
 static int mxu1_send_ctrl_urb(struct usb_serial *serial,
 			      u8 request, u16 value, u16 index)
 {
-    return mxu1_send_ctrl_data_urb(serial, request, value, index,
-				   NULL, 0);
+	return mxu1_send_ctrl_data_urb(serial, request, value, index,
+				       NULL, 0);
 }
 
 static void mxu1_stop_read(struct mxu1_port *mxport, struct tty_struct *tty)
@@ -169,7 +169,7 @@ static int mxu1_restart_read(struct mxu1_port *mxport, struct tty_struct *tty)
 static int mxu1_download_firmware(struct usb_serial *serial,
 				  const struct firmware *fw_p)
 {
-    	int status = 0;
+	int status = 0;
 	int buffer_size;
 	int pos;
 	int len;
@@ -199,15 +199,15 @@ static int mxu1_download_firmware(struct usb_serial *serial,
 		(__u16)(buffer_size - sizeof(struct mxu1_firmware_header)));
 	header->bCheckSum = cs;
 
-	pr_info("%s - downloading firmware", __func__);
+	pr_debug("%s - downloading firmware", __func__);
 
 	for (pos = 0; pos < buffer_size; pos += done) {
-	    len = min(buffer_size - pos, MXU1_DOWNLOAD_MAX_PACKET_SIZE);
+		len = min(buffer_size - pos, MXU1_DOWNLOAD_MAX_PACKET_SIZE);
 
-	    status = usb_bulk_msg(dev, pipe, buffer+pos, len, &done, 1000);
+		status = usb_bulk_msg(dev, pipe, buffer+pos, len, &done, 1000);
 
-	    if (status)
-		break;
+		if (status)
+			break;
 	}
 
 	kfree(buffer);
@@ -222,44 +222,44 @@ static int mxu1_download_firmware(struct usb_serial *serial,
 
 	status = mxu1_send_ctrl_urb(serial, MXU1_RESET_EXT_DEVICE, 0, 0);
 
-	pr_info("%s - download successful (%d)", __func__, status);
+	pr_debug("%s - download successful (%d)", __func__, status);
 
 	return 0;
 }
 
 static int mxu1_port_probe(struct usb_serial_port *port)
 {
-    struct mxu1_port *mxport;
+	struct mxu1_port *mxport;
 
-    mxport = kzalloc(sizeof(struct mxu1_port), GFP_KERNEL);
+	mxport = kzalloc(sizeof(struct mxu1_port), GFP_KERNEL);
 
-    if (!mxport)
-	return -ENOMEM;
+	if (!mxport)
+		return -ENOMEM;
 
-    spin_lock_init(&mxport->mxp_lock);
-    mxport->mxp_port = port;
-    mxport->mxp_mxdev = usb_get_serial_data(port->serial);
-    mxport->mxp_uart_base_addr = MXU1_UART1_BASE_ADDR;
-    mxport->mxp_flags = ASYNC_LOW_LATENCY;
+	spin_lock_init(&mxport->mxp_lock);
+	mxport->mxp_port = port;
+	mxport->mxp_mxdev = usb_get_serial_data(port->serial);
+	mxport->mxp_uart_base_addr = MXU1_UART1_BASE_ADDR;
+	mxport->mxp_flags = ASYNC_LOW_LATENCY;
 
-    init_waitqueue_head(&mxport->mxp_msr_wait);
+	init_waitqueue_head(&mxport->mxp_msr_wait);
 
-    if (mxport->mxp_mxdev->mxd_model_name != MXU1_MODEL_1130 &&
-	mxport->mxp_mxdev->mxd_model_name != MXU1_MODEL_1131) {
-	/* UPort 1110, 1150, 1150I */
-	mxport->mxp_uart_mode = MXU1_UART_232;
-    } else {
-	/* UPort 1130 */
-	mxport->mxp_uart_mode = MXU1_UART_485_RECEIVER_DISABLED;
-	mxport->mxp_user_get_uart_mode = MXU1_RS4852W;
-    }
+	if (mxport->mxp_mxdev->mxd_model_name != MXU1_MODEL_1130 &&
+	    mxport->mxp_mxdev->mxd_model_name != MXU1_MODEL_1131) {
+		/* UPort 1110, 1150, 1150I */
+		mxport->mxp_uart_mode = MXU1_UART_232;
+	} else {
+		/* UPort 1130 */
+		mxport->mxp_uart_mode = MXU1_UART_485_RECEIVER_DISABLED;
+		mxport->mxp_user_get_uart_mode = MXU1_RS4852W;
+	}
 
-    usb_set_serial_port_data(port, mxport);
+	usb_set_serial_port_data(port, mxport);
 
-    port->port.closing_wait = msecs_to_jiffies(closing_wait * 10);
-    port->port.drain_delay = 1;
+	port->port.closing_wait = msecs_to_jiffies(closing_wait * 10);
+	port->port.drain_delay = 1;
 
-    return 0;
+	return 0;
 }
 
 static int mxu1_startup(struct usb_serial *serial)
@@ -271,10 +271,10 @@ static int mxu1_startup(struct usb_serial *serial)
 	u16 product_id;
 	int err;
 
-	pr_info("%s - product 0x%4X, num configurations %d, configuration value %d",
-	    __func__, le16_to_cpu(dev->descriptor.idProduct),
-	    dev->descriptor.bNumConfigurations,
-	    dev->actconfig->desc.bConfigurationValue);
+	pr_debug("%s - product 0x%4X, num configurations %d, configuration value %d",
+		 __func__, le16_to_cpu(dev->descriptor.idProduct),
+		 dev->descriptor.bNumConfigurations,
+		 dev->actconfig->desc.bConfigurationValue);
 
 	/* create device structure */
 	mxdev = kzalloc(sizeof(struct mxu1_device), GFP_KERNEL);
@@ -314,26 +314,29 @@ static int mxu1_startup(struct usb_serial *serial)
 	if (dev->config->interface[0]->cur_altsetting->
 	    desc.bNumEndpoints == 1) {
 
-	    snprintf(fw_name, sizeof(fw_name) - 1, "moxa/moxa-%04x.fw", le16_to_cpu(product_id));
+		snprintf(fw_name,
+			 sizeof(fw_name) - 1,
+			 "moxa/moxa-%04x.fw",
+			 le16_to_cpu(product_id));
 
-	    err = request_firmware(&fw_p, fw_name, &serial->interface->dev);
-	    if (err) {
-		dev_err(&serial->interface->dev, "Firmware %s not found\n",
-			fw_name);
-		kfree(mxdev);
-		return err;
-	    } else {
+		err = request_firmware(&fw_p, fw_name, &serial->interface->dev);
+		if (err) {
+			dev_err(&serial->interface->dev, "Firmware %s not found\n",
+				fw_name);
+			kfree(mxdev);
+			return err;
+		}
+
 		err = mxu1_download_firmware(serial, fw_p);
 		if (err) {
-		    kfree(mxdev);
-		    return err;
+			kfree(mxdev);
+			return err;
 		}
-	    }
 
 	}
 
 	if (fw_p)
-	    release_firmware(fw_p);
+		release_firmware(fw_p);
 
 	return 0;
 }
@@ -346,8 +349,8 @@ static int mxu1_write_byte(struct mxu1_device *mxdev, unsigned long addr,
 	struct mxu1_write_data_bytes *data;
 	struct device *dev = &mxdev->mxd_serial->dev->dev;
 
-	pr_info("%s - addr 0x%08lX, mask 0x%02X, byte 0x%02X", __func__,
-	    addr, mask, byte);
+	pr_debug("%s - addr 0x%08lX, mask 0x%02X, byte 0x%02X", __func__,
+		 addr, mask, byte);
 
 	size = sizeof(struct mxu1_write_data_bytes) + 2;
 	data = kmalloc(size, GFP_KERNEL);
@@ -408,10 +411,10 @@ static void mxu1_set_termios(struct tty_struct *tty1,
 	int port_number = port->port_number - port->minor;
 	unsigned int mcr;
 
-	pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
 	if (!tty) {
-		pr_info("%s - no tty or termios", __func__);
+		pr_debug("%s - no tty or termios", __func__);
 		return;
 	}
 
@@ -420,17 +423,17 @@ static void mxu1_set_termios(struct tty_struct *tty1,
 
 	if (old_termios && cflag == old_termios->c_cflag
 	    && iflag == old_termios->c_iflag) {
-		pr_info("%s - nothing to change", __func__);
+		pr_debug("%s - nothing to change", __func__);
 		return;
 	}
 
-	pr_info("%s - clfag %08x, iflag %08x", __func__, cflag, iflag);
+	pr_debug("%s - clfag %08x, iflag %08x", __func__, cflag, iflag);
 
 	if (old_termios)
-		pr_info("%s - old clfag %08x, old iflag %08x",
-		    __func__,
-		    old_termios->c_cflag,
-		    old_termios->c_iflag);
+		pr_debug("%s - old clfag %08x, old iflag %08x",
+			 __func__,
+			 old_termios->c_cflag,
+			 old_termios->c_iflag);
 
 	if (mxport == NULL)
 		return;
@@ -499,7 +502,7 @@ static void mxu1_set_termios(struct tty_struct *tty1,
 		if (I_IXOFF(tty))
 			config->wFlags |= MXU1_UART_ENABLE_X_IN;
 		else
-		    mxu1_restart_read(mxport, tty);
+			mxu1_restart_read(mxport, tty);
 
 		if (I_IXON(tty))
 			config->wFlags |= MXU1_UART_ENABLE_X_OUT;
@@ -510,10 +513,10 @@ static void mxu1_set_termios(struct tty_struct *tty1,
 		baud = 9600;
 	config->wBaudRate = (__u16)(923077 / baud);
 
-	pr_info("%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d",
-	    __func__, baud, config->wBaudRate, config->wFlags,
-	    config->bDataBits, config->bParity, config->bStopBits,
-	    config->cXon, config->cXoff, config->bUartMode);
+	pr_debug("%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d",
+		 __func__, baud, config->wBaudRate, config->wFlags,
+		 config->bDataBits, config->bParity, config->bStopBits,
+		 config->cXon, config->cXoff, config->bUartMode);
 
 	cpu_to_be16s(&config->wBaudRate);
 	cpu_to_be16s(&config->wFlags);
@@ -566,7 +569,7 @@ static int mxu1_get_serial_info(struct mxu1_port *mxport,
 
 	cwait = port->port.closing_wait;
 	if (cwait != ASYNC_CLOSING_WAIT_NONE)
-	    cwait = jiffies_to_msecs(cwait) / 10;
+		cwait = jiffies_to_msecs(cwait) / 10;
 
 	memset(&ret_serial, 0, sizeof(ret_serial));
 
@@ -644,30 +647,33 @@ static int mxu1_ioctl(struct tty_struct *tty,
 	struct async_icount cnow;
 	struct async_icount cprev;
 
-	pr_info("%s - port %d, cmd = 0x%04X", __func__, port->port_number, cmd);
+	pr_debug("%s - port %d, cmd = 0x%04X",
+		 __func__, port->port_number, cmd);
 
 	if (mxport == NULL)
 		return -ENODEV;
 
 	switch (cmd) {
 	case TIOCGSERIAL:
-		pr_info("%s - (%d) TIOCGSERIAL", __func__, port->port_number);
+		pr_debug("%s - (%d) TIOCGSERIAL", __func__, port->port_number);
 		return mxu1_get_serial_info(mxport,
 					    (struct serial_struct __user *)arg);
 
 	case TIOCSSERIAL:
-		pr_info("%s - (%d) TIOCSSERIAL", __func__, port->port_number);
+		pr_debug("%s - (%d) TIOCSSERIAL", __func__, port->port_number);
 		return mxu1_set_serial_info(mxport,
 					    (struct serial_struct __user *)arg);
 
 	case TIOCMIWAIT:
-		pr_info("%s - (%d) TIOCMIWAIT", __func__, port->port_number);
+		pr_debug("%s - (%d) TIOCMIWAIT", __func__, port->port_number);
 		cprev = mxport->mxp_icount;
 		mxport->mxp_msr_wait_flags = 1;
 		while (1) {
-			wait_event_interruptible_timeout(mxport->mxp_msr_wait,
-							 (mxport->mxp_msr_wait_flags == 0),
-							 MXU1_MSR_WAIT_TIMEOUT);
+			wait_event_interruptible_timeout
+				(mxport->mxp_msr_wait,
+				 (mxport->mxp_msr_wait_flags == 0),
+				 MXU1_MSR_WAIT_TIMEOUT);
+
 			if (signal_pending(current))
 				return -ERESTARTSYS;
 			cnow = mxport->mxp_icount;
@@ -685,10 +691,10 @@ static int mxu1_ioctl(struct tty_struct *tty,
 		break;
 
 	case TIOCGICOUNT:
-		pr_info("%s - (%d) TIOCGICOUNT RX=%d, TX=%d",
-		    __func__,
-		    port->port_number, mxport->mxp_icount.rx,
-		    mxport->mxp_icount.tx);
+		pr_debug("%s - (%d) TIOCGICOUNT RX=%d, TX=%d",
+			 __func__,
+			 port->port_number, mxport->mxp_icount.rx,
+			 mxport->mxp_icount.tx);
 
 		if (copy_to_user((void __user *)arg,
 				 &mxport->mxp_icount,
@@ -697,17 +703,17 @@ static int mxu1_ioctl(struct tty_struct *tty,
 		return 0;
 
 	case MOXA_SET_INTERFACE:
-		pr_info("%s - port%d MOXA_SET_INTERFACE=%d", __func__,
-		    port->port_number, (int)arg);
+		pr_debug("%s - port%d MOXA_SET_INTERFACE=%d", __func__,
+			 port->port_number, (int)arg);
 
 		if (mxport->mxp_mxdev->mxd_model_name != MXU1_MODEL_1110) {
 			/* UPort 1130, 1150, 1150I */
 			switch (arg) {
 			case MXU1_RS232: /* UPort 1150, 1150I */
 				if (mxport->mxp_mxdev->mxd_model_name
-				   == MXU1_MODEL_1130 ||
-				   mxport->mxp_mxdev->mxd_model_name
-				   == MXU1_MODEL_1131) {
+				    == MXU1_MODEL_1130 ||
+				    mxport->mxp_mxdev->mxd_model_name
+				    == MXU1_MODEL_1131) {
 					return -EINVAL;
 				}
 				mxport->mxp_uart_mode = MXU1_UART_232;
@@ -745,7 +751,7 @@ static int mxu1_tiocmget(struct tty_struct *tty)
 	unsigned int msr;
 	unsigned int mcr;
 
-	pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
 	if (mxport == NULL)
 		return -ENODEV;
@@ -761,7 +767,7 @@ static int mxu1_tiocmget(struct tty_struct *tty)
 		| ((msr & MXU1_MSR_RI) ? TIOCM_RI : 0)
 		| ((msr & MXU1_MSR_DSR) ? TIOCM_DSR : 0);
 
-	pr_info("%s - 0x%04X", __func__, result);
+	pr_debug("%s - 0x%04X", __func__, result);
 
 	return result;
 }
@@ -774,7 +780,7 @@ static int mxu1_tiocmset(struct tty_struct *tty,
 	struct mxu1_port *mxport = usb_get_serial_port_data(port);
 	unsigned int mcr;
 
-	pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
 	if (mxport == NULL)
 		return -ENODEV;
@@ -805,9 +811,9 @@ static int mxu1_get_icount(struct tty_struct *tty,
 	struct mxu1_port *mxport = usb_get_serial_port_data(port);
 	struct async_icount cnow = mxport->mxp_icount;
 
-	pr_info("%s - (%d) TIOCGICOUNT RX=%d, TX=%d",
-	    __func__, port->port_number,
-	    cnow.rx, cnow.tx);
+	pr_debug("%s - (%d) TIOCGICOUNT RX=%d, TX=%d",
+		 __func__, port->port_number,
+		 cnow.rx, cnow.tx);
 
 	icount->cts = cnow.cts;
 	icount->dsr = cnow.dsr;
@@ -830,7 +836,7 @@ static void mxu1_throttle(struct tty_struct *tty)
 
 	struct mxu1_port *mxport = usb_get_serial_port_data(port);
 
-	pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
 	if (mxport == NULL)
 		return;
@@ -838,7 +844,7 @@ static void mxu1_throttle(struct tty_struct *tty)
 	tty = port->port.tty;
 
 	if (!tty) {
-		pr_info("%s - no tty", __func__);
+		pr_debug("%s - no tty", __func__);
 		return;
 	}
 
@@ -855,7 +861,7 @@ static void mxu1_unthrottle(struct tty_struct *tty)
 
 	int status = 0;
 
-	pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
 	if (mxport == NULL)
 		return;
@@ -863,7 +869,7 @@ static void mxu1_unthrottle(struct tty_struct *tty)
 	tty = port->port.tty;
 
 	if (!tty) {
-		pr_info("%s - no tty", __func__);
+		pr_debug("%s - no tty", __func__);
 		return;
 	}
 
@@ -881,7 +887,7 @@ static void mxu1_break(struct tty_struct *tty, int break_state)
 
 	struct mxu1_port *mxport = usb_get_serial_port_data(port);
 
-	pr_info("%s - state = %d", __func__, break_state);
+	pr_debug("%s - state = %d", __func__, break_state);
 
 	if (mxport == NULL)
 		return;
@@ -896,205 +902,209 @@ static void mxu1_break(struct tty_struct *tty, int break_state)
 
 static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-    struct mxu1_port *mxport = usb_get_serial_port_data(port);
-    struct mxu1_device *mxdev;
-    struct usb_device *dev;
-    struct urb *urb;
-    int port_number;
-    int status;
-    __u16 open_settings = (__u8)(MXU1_PIPE_MODE_CONTINOUS |
-				 MXU1_PIPE_TIMEOUT_ENABLE |
-				 (MXU1_TRANSFER_TIMEOUT << 2));
-    if (!mxport)
-	return -ENODEV;
+	struct mxu1_port *mxport = usb_get_serial_port_data(port);
+	struct mxu1_device *mxdev;
+	struct usb_device *dev;
+	struct urb *urb;
+	int port_number;
+	int status;
+	__u16 open_settings = (__u8)(MXU1_PIPE_MODE_CONTINOUS |
+				     MXU1_PIPE_TIMEOUT_ENABLE |
+				     (MXU1_TRANSFER_TIMEOUT << 2));
+	if (!mxport)
+		return -ENODEV;
 
-    dev = port->serial->dev;
-    mxdev = mxport->mxp_mxdev;
+	dev = port->serial->dev;
+	mxdev = mxport->mxp_mxdev;
 
-    if (port->port.tty)
-	port->port.low_latency = MXU1_DEFAULT_LOW_LATENCY;
+	if (port->port.tty)
+		port->port.low_latency = MXU1_DEFAULT_LOW_LATENCY;
 
-    port_number = port->port_number - port->minor;
+	port_number = port->port_number - port->minor;
 
-    mxport->mxp_msr = 0;
-    mxport->mxp_shadow_mcr |= (MXU1_MCR_RTS | MXU1_MCR_DTR);
+	mxport->mxp_msr = 0;
+	mxport->mxp_shadow_mcr |= (MXU1_MCR_RTS | MXU1_MCR_DTR);
 
-    if (mutex_lock_interruptible(&mxdev->mxd_lock))
-	return -ERESTARTSYS;
+	if (mutex_lock_interruptible(&mxdev->mxd_lock))
+		return -ERESTARTSYS;
 
-    /* start interrupt urb the first time a port is opened on this device */
-    if (mxdev->mxd_open_port_count == 0) {
-    	pr_info("%s - start interrupt in urb", __func__);
-    	urb = mxdev->mxd_serial->port[0]->interrupt_in_urb;
-    	if (!urb) {
-    	    dev_err(&port->dev,
-    		    "%s - no interrupt urb\n",
-    		    __func__);
-    	    status = -EINVAL;
-    	    goto release_mxd_lock;
-    	}
-    	urb->context = mxdev;
-    	status = usb_submit_urb(urb, GFP_KERNEL);
-    	if (status) {
-    	    dev_err(&port->dev,
-    		    "%s - submit interrupt urb failed, %d\n",
-    		    __func__,
-    		    status);
-    	    goto release_mxd_lock;
-    	}
-    }
+	/* start interrupt urb the first time a port is opened on this device */
+	if (mxdev->mxd_open_port_count == 0) {
+		pr_debug("%s - start interrupt in urb", __func__);
+		urb = mxdev->mxd_serial->port[0]->interrupt_in_urb;
+		if (!urb) {
+			dev_err(&port->dev,
+				"%s - no interrupt urb\n",
+				__func__);
+			status = -EINVAL;
+			goto release_mxd_lock;
+		}
+		urb->context = mxdev;
+		status = usb_submit_urb(urb, GFP_KERNEL);
+		if (status) {
+			dev_err(&port->dev,
+				"%s - submit interrupt urb failed, %d\n",
+				__func__,
+				status);
+			goto release_mxd_lock;
+		}
+	}
 
-    mxu1_set_termios(NULL, port, NULL);
+	mxu1_set_termios(NULL, port, NULL);
 
-    pr_info("%s - sending MXU1_OPEN_PORT", __func__);
-    status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_OPEN_PORT,
-				open_settings, (__u8)(MXU1_UART1_PORT + port_number));
-    if (status) {
-	dev_err(&port->dev, "%s - cannot send open command, %d\n",
-		__func__,
-		status);
-	goto unlink_int_urb;
-    }
+	pr_debug("%s - sending MXU1_OPEN_PORT", __func__);
+	status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_OPEN_PORT,
+				    open_settings,
+				    (__u8)(MXU1_UART1_PORT + port_number));
+	if (status) {
+		dev_err(&port->dev, "%s - cannot send open command, %d\n",
+			__func__,
+			status);
+		goto unlink_int_urb;
+	}
 
-    pr_info("%s - sending MXU1_START_PORT", __func__);
-    status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_START_PORT,
-				0, (__u8)(MXU1_UART1_PORT + port_number));
-    if (status) {
-	dev_err(&port->dev, "%s - cannot send start command, %d\n",
-		__func__,
-		status);
-	goto unlink_int_urb;
-    }
+	pr_debug("%s - sending MXU1_START_PORT", __func__);
+	status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_START_PORT,
+				    0, (__u8)(MXU1_UART1_PORT + port_number));
+	if (status) {
+		dev_err(&port->dev, "%s - cannot send start command, %d\n",
+			__func__,
+			status);
+		goto unlink_int_urb;
+	}
 
-    pr_info("%s - sending MXU1_PURGE_PORT", __func__);
-    status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_PURGE_PORT,
-				MXU1_PURGE_INPUT, (__u8)(MXU1_UART1_PORT + port_number));
-    if (status) {
-	dev_err(&port->dev,
-		"%s - cannot clear input buffers, %d\n",
-		__func__,
-		status);
+	pr_debug("%s - sending MXU1_PURGE_PORT", __func__);
+	status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_PURGE_PORT,
+				    MXU1_PURGE_INPUT,
+				    (__u8)(MXU1_UART1_PORT + port_number));
+	if (status) {
+		dev_err(&port->dev,
+			"%s - cannot clear input buffers, %d\n",
+			__func__,
+			status);
 
-	goto unlink_int_urb;
-    }
-    status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_PURGE_PORT,
-				MXU1_PURGE_OUTPUT, (__u8)(MXU1_UART1_PORT + port_number));
-    if (status) {
-	dev_err(&port->dev,
-		"%s - cannot clear output buffers, %d\n",
-		__func__,
-		status);
+		goto unlink_int_urb;
+	}
+	status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_PURGE_PORT,
+				    MXU1_PURGE_OUTPUT,
+				    (__u8)(MXU1_UART1_PORT + port_number));
+	if (status) {
+		dev_err(&port->dev,
+			"%s - cannot clear output buffers, %d\n",
+			__func__,
+			status);
 
-	goto unlink_int_urb;
-    }
+		goto unlink_int_urb;
+	}
 
-    /* reset the data toggle on the bulk endpoints to work around bug in
-     * host controllers where things get out of sync some times */
-    usb_clear_halt(dev, port->write_urb->pipe);
-    usb_clear_halt(dev, port->read_urb->pipe);
+	/* reset the data toggle on the bulk endpoints to work around bug in
+	 * host controllers where things get out of sync some times */
+	usb_clear_halt(dev, port->write_urb->pipe);
+	usb_clear_halt(dev, port->read_urb->pipe);
 
-    mxu1_set_termios(NULL, port, NULL);
+	mxu1_set_termios(NULL, port, NULL);
 
-    pr_info("%s - sending MXU1_OPEN_PORT", __func__);
-    status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_OPEN_PORT,
-				open_settings, (__u8)(MXU1_UART1_PORT + port_number));
-    if (status) {
-	dev_err(&port->dev, "%s - cannot send open command, %d\n",
-		__func__,
-		status);
-	goto unlink_int_urb;
-    }
+	pr_debug("%s - sending MXU1_OPEN_PORT", __func__);
+	status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_OPEN_PORT,
+				    open_settings,
+				    (__u8)(MXU1_UART1_PORT + port_number));
+	if (status) {
+		dev_err(&port->dev, "%s - cannot send open command, %d\n",
+			__func__,
+			status);
+		goto unlink_int_urb;
+	}
 
-    pr_info("%s - sending MXU1_START_PORT", __func__);
-    status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_START_PORT,
-				0, (__u8)(MXU1_UART1_PORT + port_number));
-    if (status) {
-	dev_err(&port->dev, "%s - cannot send start command, %d\n",
-		__func__,
-		status);
-	goto unlink_int_urb;
-    }
+	pr_debug("%s - sending MXU1_START_PORT", __func__);
+	status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_START_PORT,
+				    0, (__u8)(MXU1_UART1_PORT + port_number));
+	if (status) {
+		dev_err(&port->dev, "%s - cannot send start command, %d\n",
+			__func__,
+			status);
+		goto unlink_int_urb;
+	}
 
-    /* start read urb */
-    pr_info("%s - start read urb", __func__);
-    urb = port->read_urb;
+	/* start read urb */
+	pr_debug("%s - start read urb", __func__);
+	urb = port->read_urb;
 
-    if (!urb) {
-	dev_err(&port->dev, "%s - no read urb\n", __func__);
-	status = -EINVAL;
-	goto unlink_int_urb;
-    }
+	if (!urb) {
+		dev_err(&port->dev, "%s - no read urb\n", __func__);
+		status = -EINVAL;
+		goto unlink_int_urb;
+	}
 
-    mxport->mxp_read_urb_state = MXU1_READ_URB_RUNNING;
-    urb->context = mxport;
-    urb->dev = dev;
-    status = usb_submit_urb(urb, GFP_KERNEL);
+	mxport->mxp_read_urb_state = MXU1_READ_URB_RUNNING;
+	urb->context = mxport;
+	urb->dev = dev;
+	status = usb_submit_urb(urb, GFP_KERNEL);
 
-    if (status) {
-	dev_err(&port->dev, "%s - submit read urb failed, %d\n",
-		__func__, status);
-	goto unlink_int_urb;
-    }
+	if (status) {
+		dev_err(&port->dev, "%s - submit read urb failed, %d\n",
+			__func__, status);
+		goto unlink_int_urb;
+	}
 
-    mxport->mxp_is_open = 1;
-    ++mxdev->mxd_open_port_count;
+	mxport->mxp_is_open = 1;
+	++mxdev->mxd_open_port_count;
 
-    goto release_mxd_lock;
+	goto release_mxd_lock;
 
 unlink_int_urb:
-    if (mxdev->mxd_open_port_count == 0)
-	usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
+	if (mxdev->mxd_open_port_count == 0)
+		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
 
 release_mxd_lock:
-    mutex_unlock(&mxdev->mxd_lock);
-    pr_info("%s - exit %d", __func__, status);
+	mutex_unlock(&mxdev->mxd_lock);
+	pr_debug("%s - exit %d", __func__, status);
 
-    return status;
+	return status;
 }
 
 static void mxu1_close(struct usb_serial_port *port)
 {
-    struct mxu1_device *mxdev;
-    struct mxu1_port *mxport;
-    int port_number;
-    int status = 0;
+	struct mxu1_device *mxdev;
+	struct mxu1_port *mxport;
+	int port_number;
+	int status = 0;
 
-    pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
-    mxdev = usb_get_serial_data(port->serial);
-    mxport = usb_get_serial_port_data(port);
-    if (mxdev == NULL || mxport == NULL)
-	return;
+	mxdev = usb_get_serial_data(port->serial);
+	mxport = usb_get_serial_port_data(port);
+	if (mxdev == NULL || mxport == NULL)
+		return;
 
-    mxport->mxp_is_open = 0;
+	mxport->mxp_is_open = 0;
 
-    pr_info("reste %d chars", usb_serial_generic_chars_in_buffer(port->port.tty));
+	usb_kill_urb(port->read_urb);
+	usb_kill_urb(port->write_urb);
 
-    usb_kill_urb(port->read_urb);
-    usb_kill_urb(port->write_urb);
+	mxport->mxp_write_urb_in_use = 0;
 
-    mxport->mxp_write_urb_in_use = 0;
+	port_number = port->port_number - port->minor;
 
-    port_number = port->port_number - port->minor;
+	pr_debug("%s - sending MXU1_CLOSE_PORT", __func__);
+	status = mxu1_send_ctrl_urb(port->serial,
+				    MXU1_CLOSE_PORT,
+				    0, (__u8)(MXU1_UART1_PORT + port_number));
+	if (status)
+		dev_err(&port->dev,
+			"%s - cannot send close port command, %d\n",
+			__func__,
+			status);
 
-    pr_info("%s - sending MXU1_CLOSE_PORT", __func__);
-    status = mxu1_send_ctrl_urb(port->serial, MXU1_CLOSE_PORT, 0, (__u8)(MXU1_UART1_PORT + port_number));
-    if (status)
-	dev_err(&port->dev,
-		"%s - cannot send close port command, %d\n",
-		__func__,
-		status);
+	mutex_lock_interruptible(&mxdev->mxd_lock);
+	--mxport->mxp_mxdev->mxd_open_port_count;
+	if (mxport->mxp_mxdev->mxd_open_port_count <= 0) {
+		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
 
-    mutex_lock_interruptible(&mxdev->mxd_lock);
-    --mxport->mxp_mxdev->mxd_open_port_count;
-    if (mxport->mxp_mxdev->mxd_open_port_count <= 0) {
-	usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
+		mxport->mxp_mxdev->mxd_open_port_count = 0;
+	}
+	mutex_unlock(&mxdev->mxd_lock);
 
-	mxport->mxp_mxdev->mxd_open_port_count = 0;
-    }
-    mutex_unlock(&mxdev->mxd_lock);
-
-    pr_info("%s - exit", __func__);
+	pr_debug("%s - exit", __func__);
 }
 
 static void mxu1_handle_new_msr(struct mxu1_port *mxport, __u8 msr)
@@ -1103,11 +1113,11 @@ static void mxu1_handle_new_msr(struct mxu1_port *mxport, __u8 msr)
 	struct tty_struct *tty;
 	unsigned long flags;
 
-	pr_info("%s - msr 0x%02X", __func__, msr);
+	pr_debug("%s - msr 0x%02X", __func__, msr);
 
 	if (msr & MXU1_MSR_DELTA_MASK) {
 		spin_lock_irqsave(&mxport->mxp_lock, flags);
-		pr_info("mxp_lock passed");
+		pr_debug("mxp_lock passed");
 		icount = &mxport->mxp_icount;
 		if (msr & MXU1_MSR_DELTA_CTS)
 			icount->cts++;
@@ -1119,7 +1129,7 @@ static void mxu1_handle_new_msr(struct mxu1_port *mxport, __u8 msr)
 			icount->rng++;
 		if (mxport->mxp_msr_wait_flags == 1) {
 			mxport->mxp_msr_wait_flags = 0;
-			pr_info("wait interruptible");
+			pr_debug("wait interruptible");
 			wake_up_interruptible(&mxport->mxp_msr_wait);
 		}
 		spin_unlock_irqrestore(&mxport->mxp_lock, flags);
@@ -1140,7 +1150,7 @@ static void mxu1_handle_new_msr(struct mxu1_port *mxport, __u8 msr)
 		}
 	}
 
-	pr_info("end msr");
+	pr_debug("end msr");
 }
 
 static void mxu1_interrupt_callback(struct urb *urb)
@@ -1157,7 +1167,7 @@ static void mxu1_interrupt_callback(struct urb *urb)
 	int status = 0;
 	__u8 msr;
 
-	pr_info("%s", __func__);
+	pr_debug("%s", __func__);
 
 	/* Check port is valid or not */
 	if (mxdev == NULL)
@@ -1170,16 +1180,16 @@ static void mxu1_interrupt_callback(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		pr_info("!!!!!!!!!!!!!!!!!! %s - urb shutting down, %d", __func__, urb->status);
+		pr_debug("%s - urb shutting down, %d", __func__, urb->status);
 		return;
 	default:
-	        dev_err(dev, "!!!!!!!!!!!! %s - nonzero urb status, %d\n",
+		dev_err(dev, "%s - nonzero urb status, %d\n",
 			__func__, urb->status);
 		goto exit;
 	}
 
 	if (length != 2) {
-		pr_info("%s - bad packet size, %d", __func__, length);
+		pr_debug("%s - bad packet size, %d", __func__, length);
 		goto exit;
 	}
 
@@ -1191,11 +1201,11 @@ static void mxu1_interrupt_callback(struct urb *urb)
 	port_number = MXU1_GET_PORT_FROM_CODE(data[0]);
 	function = MXU1_GET_FUNC_FROM_CODE(data[0]);
 
-	pr_info("%s - port_number %d, function %d, data 0x%02X",
-	    __func__,
-	    port_number,
-	    function,
-	    data[1]);
+	pr_debug("%s - port_number %d, function %d, data 0x%02X",
+		 __func__,
+		 port_number,
+		 function,
+		 data[1]);
 
 	if (port_number >= serial->num_ports) {
 		dev_err(dev, "%s - bad port number, %d\n",
@@ -1211,15 +1221,16 @@ static void mxu1_interrupt_callback(struct urb *urb)
 
 	switch (function) {
 	case MXU1_CODE_DATA_ERROR:
-		pr_info("%s - DATA ERROR, port %d, data 0x%02X\n",
-		    __func__,
-		    port_number,
-		    data[1]);
+		pr_debug("%s - DATA ERROR, port %d, data 0x%02X\n",
+			 __func__,
+			 port_number,
+			 data[1]);
 		break;
 
 	case MXU1_CODE_MODEM_STATUS:
 		msr = data[1];
-		pr_info("%s - port %d, msr 0x%02X", __func__, port_number, msr);
+		pr_debug("%s - port %d, msr 0x%02X",
+			 __func__, port_number, msr);
 		mxu1_handle_new_msr(mxport, msr);
 		break;
 
@@ -1243,7 +1254,7 @@ static void mxu1_bulk_in_callback(struct urb *urb)
 	struct device *dev = &urb->dev->dev;
 	int status = 0;
 
-	pr_info("%s", __func__);
+	pr_debug("%s", __func__);
 
 	/*Check port is valid or not*/
 	if (mxport == NULL)
@@ -1255,7 +1266,7 @@ static void mxu1_bulk_in_callback(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		pr_info("%s - urb shutting down, %d", __func__, urb->status);
+		pr_debug("%s - urb shutting down, %d", __func__, urb->status);
 		return;
 	default:
 		dev_err(dev, "%s - nonzero urb status, %d\n",
@@ -1275,7 +1286,7 @@ static void mxu1_bulk_in_callback(struct urb *urb)
 				      urb->actual_length, urb->transfer_buffer);
 
 		if (!mxport->mxp_is_open)
-			pr_info("%s - port closed, dropping data", __func__);
+			pr_debug("%s - port closed, dropping data", __func__);
 		else
 			mxu1_recv(mxport,
 				  urb->transfer_buffer, urb->actual_length);
@@ -1303,10 +1314,10 @@ exit:
 
 static void mxu1_bulk_out_callback(struct urb *urb)
 {
-        struct mxu1_port *mxport = (struct mxu1_port *)urb->context;
+	struct mxu1_port *mxport = (struct mxu1_port *)urb->context;
 	struct usb_serial_port *port = mxport->mxp_port;
 
-	pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
 	/* Check port is valid or not */
 	if (mxport == NULL)
@@ -1320,7 +1331,7 @@ static void mxu1_bulk_out_callback(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		pr_info("%s - urb shutting down, %d", __func__, urb->status);
+		pr_debug("%s - urb shutting down, %d", __func__, urb->status);
 		return;
 	default:
 		dev_err_console(port, "%s - nonzero urb status, %d\n",
@@ -1340,7 +1351,7 @@ static void mxu1_send(struct mxu1_port *mxport)
 
 	unsigned long flags;
 
-	pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
 	spin_lock_irqsave(&mxport->mxp_lock, flags);
 
@@ -1398,10 +1409,10 @@ static int mxu1_write(struct tty_struct *tty,
 {
 	struct mxu1_port *mxport = usb_get_serial_port_data(port);
 
-	pr_info("%s - port %d", __func__, port->port_number);
+	pr_debug("%s - port %d", __func__, port->port_number);
 
 	if (count == 0) {
-		pr_info("%s - write request of 0 bytes", __func__);
+		pr_debug("%s - write request of 0 bytes", __func__);
 		return 0;
 	}
 
@@ -1422,12 +1433,13 @@ static void mxu1_recv(struct mxu1_port *mxport,
 	struct tty_struct *tty;
 
 	tty = mxport->mxp_port->port.tty;
-	
+
 	queued = tty_insert_flip_string(tty->port, data, length);
 	if (queued < length)
-		dev_err(&mxport->mxp_port->dev, "%s - dropping data, %d bytes lost\n",			
+		dev_err(&mxport->mxp_port->dev,
+			"%s - dropping data, %d bytes lost\n",
 			__func__, length - queued);
-	tty_flip_buffer_push(tty->port);       
+	tty_flip_buffer_push(tty->port);
 }
 
 static struct usb_serial_driver mxuport11_device = {
@@ -1458,7 +1470,7 @@ static struct usb_serial_driver mxuport11_device = {
 };
 
 static struct usb_serial_driver *const serial_drivers[] = {
-    &mxuport11_device, NULL
+	&mxuport11_device, NULL
 };
 
 module_usb_serial_driver(serial_drivers, mxuport11_idtable);
