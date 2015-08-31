@@ -1,8 +1,8 @@
-#ifndef _MXU11X0_H_
-#define _MXU11X0_H_
+#ifndef _MXU11X_H_
+#define _MXU11X_H_
 
 /* Vendor and product ids */
-#define MXU1_VENDOR_ID				0x110a	
+#define MXU1_VENDOR_ID				0x110a
 #define MXU1_1110_PRODUCT_ID			0x1110
 #define MXU1_1130_PRODUCT_ID			0x1130
 #define MXU1_1150_PRODUCT_ID			0x1150
@@ -15,6 +15,7 @@
 #define MXU1_MODEL_1150				0x03
 #define MXU1_MODEL_1151				0x04
 #define MXU1_MODEL_1131				0x05
+
 /* Commands */
 #define MXU1_GET_VERSION			0x01
 #define MXU1_GET_PORT_STATUS			0x02
@@ -121,7 +122,6 @@
 #define MOXA					404
 #define MOXA_SET_INTERFACE			(MOXA + 1)
 
-
 /* Config struct */
 struct mxu1_uart_config {
 	__u16	wBaudRate;
@@ -132,7 +132,7 @@ struct mxu1_uart_config {
 	char	cXon;
 	char	cXoff;
 	__u8	bUartMode;
-} __attribute__((packed));
+} __packed
 
 /* Purge modes */
 #define MXU1_PURGE_OUTPUT			0x00
@@ -165,7 +165,7 @@ struct mxu1_write_data_bytes {
 	__u16	wBaseAddrLo;
 #endif
 	__u8	bData[0];
-} __attribute__((packed));
+} __packed
 
 /* Interrupt codes */
 #define MXU1_GET_PORT_FROM_CODE(c)		(((c) >> 4) - 3)
@@ -179,18 +179,21 @@ struct mxu1_write_data_bytes {
 
 /* Firmware image header */
 struct mxu1_firmware_header {
-#ifdef __CHECK_ENDIAN__
-	__le16	wLength;
+#ifdef __CHECK_
+	__le16 wLength;
 #else
-	__u16 	wLength;
+	__u16 wLength;
 #endif
-	__u8	bCheckSum;
-} __attribute__((packed));
+	__u8 bCheckSum;
+} __packed
 
 /* UART addresses */
-#define MXU1_UART1_BASE_ADDR			0xFFA0	/*UART 1 base address*/
-#define MXU1_UART2_BASE_ADDR			0xFFB0	/*UART 2 base address*/
-#define MXU1_UART_OFFSET_LCR			0x0002	/*UART MCR register offset */
-#define MXU1_UART_OFFSET_MCR			0x0004	/*UART MCR register offset */
+/* UART 1 base address */
+#define MXU1_UART1_BASE_ADDR			0xFFA0
+/* UART 2 base address*/
+#define MXU1_UART2_BASE_ADDR			0xFFB0
+#define MXU1_UART_OFFSET_LCR			0x0002
+/*UART MCR register offset */
+#define MXU1_UART_OFFSET_MCR			0x0004
 
 #endif /* _MXU11X0_H_ */

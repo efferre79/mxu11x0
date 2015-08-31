@@ -1,6 +1,6 @@
 /*
  *
- * MOXA UPort 11x0 USB to Serial Hub Driver
+ * MOXA UPort 11x USB to Serial Hub Driver
  *
  * Copyright (C) 2007 MOXA Technologies Co., Ltd.
  * Copyright (C) 2015 Mathieu Othacehe <m.othacehe@gmail.com>
@@ -28,7 +28,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#include "mxu11x0r.h"
+#include "mxu11x.h"
 
 struct mxu1_port {
 	int mxp_is_open;
@@ -1447,7 +1447,7 @@ static struct usb_serial_driver mxuport11_device = {
 		.owner		= THIS_MODULE,
 		.name		= "mxuport11",
 	},
-	.description		= "MOXA UPort 11xx",
+	.description		= "MOXA UPort 11x",
 	.id_table		= mxuport11_idtable,
 	.num_ports		= 1,
 	.port_probe             = mxu1_port_probe,
