@@ -257,7 +257,7 @@ static int mxu1_port_probe(struct usb_serial_port *port)
 	usb_set_serial_port_data(port, mxport);
 
 	port->port.closing_wait = msecs_to_jiffies(closing_wait * 10);
-	port->port.drain_delay = 1;
+	port->port.drain_delay = 1;	
 
 	return 0;
 }
@@ -1067,8 +1067,9 @@ static void mxu1_close(struct usb_serial_port *port)
 	struct mxu1_device *mxdev;
 	struct mxu1_port *mxport;
 	int port_number;
+	unsigned long flags;
 	int status = 0;
-
+	
 	pr_debug("%s - port %d", __func__, port->port_number);
 
 	mxdev = usb_get_serial_data(port->serial);
@@ -1083,6 +1084,10 @@ static void mxu1_close(struct usb_serial_port *port)
 
 	mxport->mxp_write_urb_in_use = 0;
 
+	spin_lock_irqsave(&port->lock, flags);
+	kfifo_reset_out(&port->write_fifo);
+	spin_unlock_irqrestore(&port->lock, flags);
+
 	port_number = port->port_number - port->minor;
 
 	pr_debug("%s - sending MXU1_CLOSE_PORT", __func__);
@@ -1095,7 +1100,7 @@ static void mxu1_close(struct usb_serial_port *port)
 			__func__,
 			status);
 
-	mutex_lock_interruptible(&mxdev->mxd_lock);
+	mutex_lock(&mxdev->mxd_lock);
 	--mxport->mxp_mxdev->mxd_open_port_count;
 	if (mxport->mxp_mxdev->mxd_open_port_count <= 0) {
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);

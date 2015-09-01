@@ -132,7 +132,7 @@ struct mxu1_uart_config {
 	char	cXon;
 	char	cXoff;
 	__u8	bUartMode;
-} __packed
+} __packed;
 
 /* Purge modes */
 #define MXU1_PURGE_OUTPUT			0x00
@@ -165,7 +165,7 @@ struct mxu1_write_data_bytes {
 	__u16	wBaseAddrLo;
 #endif
 	__u8	bData[0];
-} __packed
+} __packed;
 
 /* Interrupt codes */
 #define MXU1_GET_PORT_FROM_CODE(c)		(((c) >> 4) - 3)
@@ -185,7 +185,7 @@ struct mxu1_firmware_header {
 	__u16 wLength;
 #endif
 	__u8 bCheckSum;
-} __packed
+} __packed;
 
 /* UART addresses */
 /* UART 1 base address */
