@@ -1,5 +1,5 @@
-#ifndef _MXU11X_H_
-#define _MXU11X_H_
+#ifndef _MXU11X0_H_
+#define _MXU11X0_H_
 
 /* Vendor and product ids */
 #define MXU1_VENDOR_ID				0x110a

@@ -1,6 +1,6 @@
 /*
  *
- * MOXA UPort 11x USB to Serial Hub Driver
+ * MOXA UPort 11x0 USB to Serial Hub Driver
  *
  * Copyright (C) 2007 MOXA Technologies Co., Ltd.
  * Copyright (C) 2015 Mathieu Othacehe <m.othacehe@gmail.com>
@@ -9,7 +9,16 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
+ * 
  *
+ * Supports the following Moxa USB to serial converters:
+ *  UPort 1110,  1 port RS-232 USB to Serial Hub.
+ *  UPort 1130,  1 port RS-422/485 USB to Serial Hub.
+ *  UPort 1130I, 1 port RS-422/485 USB to Serial Hub with isolation
+ *    protection.
+ *  UPort 1150,  1 port RS-232/422/485 USB to Serial Hub.
+ *  UPort 1150I, 1 port RS-232/422/485 USB to Serial Hub with isolation
+ *  protection.
  */
 
 #include <linux/kernel.h>
@@ -28,7 +37,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#include "mxu11x.h"
+#include "mxu11x0.h"
 
 struct mxu1_port {
 	int mxp_is_open;
@@ -1452,7 +1461,7 @@ static struct usb_serial_driver mxuport11_device = {
 		.owner		= THIS_MODULE,
 		.name		= "mxuport11",
 	},
-	.description		= "MOXA UPort 11x",
+	.description		= "MOXA UPort 11x0",
 	.id_table		= mxuport11_idtable,
 	.num_ports		= 1,
 	.port_probe             = mxu1_port_probe,
@@ -1482,7 +1491,7 @@ module_usb_serial_driver(serial_drivers, mxuport11_idtable);
 
 MODULE_AUTHOR("Ken Huang");
 MODULE_AUTHOR("Mathieu Othacehe <m.othacehe@gmail.com>");
-MODULE_DESCRIPTION("MOXA UPort 11xx USB to Serial Hub Driver");
+MODULE_DESCRIPTION("MOXA UPort 11x0 USB to Serial Hub Driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE("moxa/moxa-1110.fw");
 MODULE_FIRMWARE("moxa/moxa-1130.fw");
