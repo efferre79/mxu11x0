@@ -1,6 +1,6 @@
 /*
  *
- * MOXA UPort 11x0 USB to Serial Hub Driver
+ * USB Moxa UPORT 11x0 Serial Driver
  *
  * Copyright (C) 2007 MOXA Technologies Co., Ltd.
  * Copyright (C) 2015 Mathieu Othacehe <m.othacehe@gmail.com>
@@ -9,7 +9,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  *
  * Supports the following Moxa USB to serial converters:
  *  UPort 1110,  1 port RS-232 USB to Serial Hub.
@@ -63,7 +63,7 @@ struct mxu1_port {
 struct mxu1_device {
 	struct mutex mxd_lock;
 	int mxd_open_port_count;
-	struct usb_serial	*mxd_serial;
+	struct usb_serial *mxd_serial;
 	int mxd_model_name;
 };
 
@@ -266,7 +266,7 @@ static int mxu1_port_probe(struct usb_serial_port *port)
 	usb_set_serial_port_data(port, mxport);
 
 	port->port.closing_wait = msecs_to_jiffies(closing_wait * 10);
-	port->port.drain_delay = 1;	
+	port->port.drain_delay = 1;
 
 	return 0;
 }
@@ -1078,7 +1078,7 @@ static void mxu1_close(struct usb_serial_port *port)
 	int port_number;
 	unsigned long flags;
 	int status = 0;
-	
+
 	pr_debug("%s - port %d", __func__, port->port_number);
 
 	mxdev = usb_get_serial_data(port->serial);
@@ -1131,7 +1131,6 @@ static void mxu1_handle_new_msr(struct mxu1_port *mxport, __u8 msr)
 
 	if (msr & MXU1_MSR_DELTA_MASK) {
 		spin_lock_irqsave(&mxport->mxp_lock, flags);
-		pr_debug("mxp_lock passed");
 		icount = &mxport->mxp_icount;
 		if (msr & MXU1_MSR_DELTA_CTS)
 			icount->cts++;
@@ -1143,7 +1142,6 @@ static void mxu1_handle_new_msr(struct mxu1_port *mxport, __u8 msr)
 			icount->rng++;
 		if (mxport->mxp_msr_wait_flags == 1) {
 			mxport->mxp_msr_wait_flags = 0;
-			pr_debug("wait interruptible");
 			wake_up_interruptible(&mxport->mxp_msr_wait);
 		}
 		spin_unlock_irqrestore(&mxport->mxp_lock, flags);
@@ -1162,9 +1160,7 @@ static void mxu1_handle_new_msr(struct mxu1_port *mxport, __u8 msr)
 		} else {
 			tty->hw_stopped = 1;
 		}
-	}
-
-	pr_debug("end msr");
+	}	
 }
 
 static void mxu1_interrupt_callback(struct urb *urb)
