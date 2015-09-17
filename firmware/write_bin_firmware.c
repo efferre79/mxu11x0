@@ -10,7 +10,6 @@ int tr(char* out, unsigned char buffer[], int size) {
 	FILE* fo = fopen(out, "wb");    
    
 	int buffer_size = size * sizeof(char) + 1;
-	printf("buffer size %d\n", buffer_size);
 	
 	fwrite(buffer, buffer_size, 1, fo);
 	
