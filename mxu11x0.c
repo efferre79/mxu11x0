@@ -211,11 +211,6 @@ struct mxu1_firmware_header {
 /*UART MCR register offset */
 #define MXU1_UART_OFFSET_MCR			0x0004
 
-/* supported setserial flags */
-#define MXU1_SET_SERIAL_FLAGS	    (ASYNC_LOW_LATENCY)
-
-#define MXU1_DEFAULT_LOW_LATENCY    1
-
 #define MXU1_TRANSFER_TIMEOUT	    2
 #define MXU1_MSR_WAIT_TIMEOUT	    (5 * HZ)
 
@@ -849,9 +844,6 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	dev = port->serial->dev;
 	mxdev = mxport->mxp_mxdev;
-
-	if (port->port.tty)
-		port->port.low_latency = MXU1_DEFAULT_LOW_LATENCY;
 
 	port_number = port->port_number - port->minor;
 
