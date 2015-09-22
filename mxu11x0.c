@@ -754,7 +754,7 @@ static int mxu1_set_serial_info(struct mxu1_port *mxport,
 {
 	struct serial_struct new_serial;
 	unsigned cwait;
-	
+
 	if (copy_from_user(&new_serial, new_arg, sizeof(new_serial)))
 		return -EFAULT;
 
@@ -764,7 +764,7 @@ static int mxu1_set_serial_info(struct mxu1_port *mxport,
 
 	mxport->mxp_flags = new_serial.flags & MXU1_SET_SERIAL_FLAGS;
 	mxport->mxp_port->port.closing_wait = cwait;
-	
+
 	return 0;
 }
 
@@ -782,7 +782,7 @@ static int mxu1_ioctl(struct tty_struct *tty,
 	case TIOCGSERIAL:
 		return mxu1_get_serial_info(mxport,
 					    (struct serial_struct __user *)arg);
-		
+
 	case TIOCSSERIAL:
 		return mxu1_set_serial_info(mxport,
 					    (struct serial_struct __user *)arg);
@@ -944,7 +944,7 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 			status);
 		goto unlink_int_urb;
 	}
-	
+
 	dev_dbg(&port->dev, "%s - sending MXU1_START_PORT", __func__);
 	status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_START_PORT,
 				    0, (u8)(MXU1_UART1_PORT + port_number));
