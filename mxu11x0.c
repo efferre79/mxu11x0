@@ -913,8 +913,6 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (mutex_lock_interruptible(&mxdev->mxd_lock))
 		return -ERESTARTSYS;
 
-	mxu1_set_termios(NULL, port, NULL);
-
 	dev_dbg(&port->dev, "%s - start interrupt in urb", __func__);
 	urb = mxdev->mxd_serial->port[0]->interrupt_in_urb;
 	if (!urb) {
@@ -933,6 +931,8 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 			status);
 		goto release_mxd_lock;
 	}
+
+	mxu1_set_termios(NULL, port, NULL);
 
 	dev_dbg(&port->dev, "%s - sending MXU1_OPEN_PORT", __func__);
 	status = mxu1_send_ctrl_urb(mxdev->mxd_serial, MXU1_OPEN_PORT,
