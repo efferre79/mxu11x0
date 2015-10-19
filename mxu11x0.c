@@ -136,9 +136,9 @@
 #define MXU1_UART_232				0x00
 #define MXU1_UART_485_RECEIVER_DISABLED		0x01
 #define MXU1_UART_485_RECEIVER_ENABLED		0x02
-#define MXU1_TYPE_RS232				(1 << 0)
-#define MXU1_TYPE_RS422				(1 << 1)
-#define MXU1_TYPE_RS485				(1 << 2)
+#define MXU1_TYPE_RS232				BIT(0)
+#define MXU1_TYPE_RS422				BIT(1)
+#define MXU1_TYPE_RS485				BIT(2)
 
 /* Pipe transfer mode and timeout */
 #define MXU1_PIPE_MODE_CONTINUOUS		0x01
@@ -202,24 +202,13 @@ struct mxu1_firmware_header {
 	u8 bCheckSum;
 } __packed;
 
-/* UART addresses */
-/* UART 1 base address */
-#define MXU1_UART1_BASE_ADDR			0xFFA0
-/* UART 2 base address*/
-#define MXU1_UART2_BASE_ADDR			0xFFB0
-#define MXU1_UART_OFFSET_LCR			0x0002
-/*UART MCR register offset */
-#define MXU1_UART_OFFSET_MCR			0x0004
+#define MXU1_UART_BASE_ADDR	    0xFFA0
+#define MXU1_UART_OFFSET_MCR	    0x0004
 
 #define MXU1_SET_SERIAL_FLAGS	    0
 
 #define MXU1_TRANSFER_TIMEOUT	    2
-#define MXU1_MSR_WAIT_TIMEOUT	    (5 * HZ)
-
-/* Configuration ids */
-#define MXU1_BOOT_CONFIG	    1
-#define MXU1_ACTIVE_CONFIG	    2
-
+#define MXU1_DOWNLOAD_TIMEOUT       1000
 #define MXU1_DEFAULT_CLOSING_WAIT   4000		/* in .01 secs */
 
 struct mxu1_port {
@@ -228,7 +217,6 @@ struct mxu1_port {
 	u8 mxp_shadow_mcr;
 	u8 mxp_uart_types;
 	u8 mxp_uart_mode;
-	unsigned int mxp_uart_base_addr;
 	int mxp_flags;
 	int mxp_msr_wait_flags;
 	wait_queue_head_t mxp_msr_wait;	/* wait for msr change */
@@ -270,7 +258,7 @@ static int mxu1_send_ctrl_data_urb(struct usb_serial *serial,
 				 (USB_DIR_OUT | USB_TYPE_VENDOR |
 				  USB_RECIP_DEVICE), value, index,
 				 data, size,
-				 1000);
+				 USB_CTRL_SET_TIMEOUT);
 	if (status < 0) {
 		dev_err(&serial->interface->dev,
 			"%s - usb_control_msg failed (%d)\n",
@@ -308,11 +296,12 @@ static int mxu1_download_firmware(struct usb_serial *serial,
 	u8 *buffer;
 	struct usb_device *dev = serial->dev;
 	struct mxu1_firmware_header *header;
-	unsigned int pipe = usb_sndbulkpipe(dev, serial->port[0]->
-					    bulk_out_endpointAddress);
+	unsigned int pipe;
 
-	buffer_size = fw_p->size +
-		sizeof(struct mxu1_firmware_header);
+	pipe = usb_sndbulkpipe(dev, serial->port[0]->
+			bulk_out_endpointAddress);
+
+	buffer_size = fw_p->size + sizeof(*header);
 	buffer = kmalloc(buffer_size, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
@@ -320,13 +309,11 @@ static int mxu1_download_firmware(struct usb_serial *serial,
 	memcpy(buffer, fw_p->data, fw_p->size);
 	memset(buffer + fw_p->size, 0xff, buffer_size - fw_p->size);
 
-	for (pos = sizeof(struct mxu1_firmware_header);
-	     pos < buffer_size; pos++)
+	for (pos = sizeof(*header); pos < buffer_size; pos++)
 		cs = (u8)(cs + buffer[pos]);
 
 	header = (struct mxu1_firmware_header *)buffer;
-	header->wLength = cpu_to_le16(
-		(__u16)(buffer_size - sizeof(struct mxu1_firmware_header)));
+	header->wLength = cpu_to_le16(buffer_size - sizeof(*header));
 	header->bCheckSum = cs;
 
 	dev_dbg(&dev->dev, "%s - downloading firmware", __func__);
@@ -334,8 +321,8 @@ static int mxu1_download_firmware(struct usb_serial *serial,
 	for (pos = 0; pos < buffer_size; pos += done) {
 		len = min(buffer_size - pos, MXU1_DOWNLOAD_MAX_PACKET_SIZE);
 
-		status = usb_bulk_msg(dev, pipe, buffer+pos, len, &done, 1000);
-
+		status = usb_bulk_msg(dev, pipe, buffer + pos, len, &done,
+				MXU1_DOWNLOAD_TIMEOUT);
 		if (status)
 			break;
 	}
@@ -362,14 +349,12 @@ static int mxu1_port_probe(struct usb_serial_port *port)
 	struct mxu1_port *mxport;
 
 	mxport = kzalloc(sizeof(struct mxu1_port), GFP_KERNEL);
-
 	if (!mxport)
 		return -ENOMEM;
 
 	spin_lock_init(&mxport->mxp_lock);
 	mxport->mxp_port = port;
 	mxport->mxp_mxdev = usb_get_serial_data(port->serial);
-	mxport->mxp_uart_base_addr = MXU1_UART1_BASE_ADDR;
 
 	init_waitqueue_head(&mxport->mxp_msr_wait);
 
@@ -500,7 +485,7 @@ static int mxu1_set_mcr(struct mxu1_port *mxport, unsigned int mcr)
 	unsigned long flags;
 
 	status = mxu1_write_byte(mxport->mxp_mxdev,
-				 mxport->mxp_uart_base_addr +
+				 MXU1_UART_BASE_ADDR +
 				 MXU1_UART_OFFSET_MCR,
 				 MXU1_MCR_RTS | MXU1_MCR_DTR | MXU1_MCR_LOOP,
 				 mcr);
