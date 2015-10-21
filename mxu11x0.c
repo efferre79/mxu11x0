@@ -220,6 +220,7 @@ struct mxu1_port {
 	u8 mxp_uart_mode;
 	struct usb_serial_port *mxp_port;
 	spinlock_t mxp_lock;
+	struct mutex mxp_mutex; /* Protects mxp_shadow_mcr */
 	int mxp_send_break;
 };
 
@@ -343,14 +344,23 @@ static int mxu1_port_probe(struct usb_serial_port *port)
 {
 	struct mxu1_port *mxport;
 	struct mxu1_device *mxdev;
+	struct urb *urb;
 
 	mxport = kzalloc(sizeof(struct mxu1_port), GFP_KERNEL);
 	if (!mxport)
 		return -ENOMEM;
 
 	spin_lock_init(&mxport->mxp_lock);
+	mutex_init(&mxport->mxp_mutex);
+
 	mxport->mxp_port = port;
 	mxdev = usb_get_serial_data(port->serial);
+
+	urb = port->interrupt_in_urb;
+	if (!urb) {
+		dev_err(&port->dev, "%s - no interrupt urb\n", __func__);
+		return -EINVAL;
+	}
 
 	switch (mxdev->mxd_model) {
 	case MXU1_1110_PRODUCT_ID:
@@ -475,7 +485,6 @@ static int mxu1_set_mcr(struct usb_serial_port *port,
 {
 	struct mxu1_device *mxdev;
 	int status;
-	unsigned long flags;
 
 	mxdev = usb_get_serial_data(port->serial);
 
@@ -484,12 +493,6 @@ static int mxu1_set_mcr(struct usb_serial_port *port,
 				 MXU1_UART_OFFSET_MCR,
 				 MXU1_MCR_RTS | MXU1_MCR_DTR | MXU1_MCR_LOOP,
 				 mcr);
-
-	spin_lock_irqsave(&mxport->mxp_lock, flags);
-	if (!status)
-		mxport->mxp_shadow_mcr = mcr;
-	spin_unlock_irqrestore(&mxport->mxp_lock, flags);
-
 	return status;
 }
 
@@ -503,7 +506,6 @@ static void mxu1_set_termios(struct tty_struct *tty,
 	speed_t baud;
 	int status;
 	unsigned int mcr;
-	unsigned long flags;
 
 	dev_dbg(&port->dev, "%s\n", __func__);
 
@@ -616,7 +618,7 @@ static void mxu1_set_termios(struct tty_struct *tty,
 		dev_err(&port->dev, "cannot set config: %d\n", status);
 	}
 
-	spin_lock_irqsave(&mxport->mxp_lock, flags);
+	mutex_lock(&mxport->mxp_mutex);
 	mcr = mxport->mxp_shadow_mcr;
 
 	if (C_BAUD(tty) == B0)
@@ -624,17 +626,14 @@ static void mxu1_set_termios(struct tty_struct *tty,
 	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
 		mcr |= ~(MXU1_MCR_DTR | MXU1_MCR_RTS);
 
-	if (mcr != mxport->mxp_shadow_mcr) {
-		spin_unlock_irqrestore(&mxport->mxp_lock, flags);
-		status = mxu1_set_mcr(port, mxport, mcr);
-		if (status) {
-			dev_err(&port->dev,
-				"cannot set modem control: %d\n", status);
-		}
+	status = mxu1_set_mcr(port, mxport, mcr);
+	if (status) {
+		dev_err(&port->dev, "cannot set modem control: %d\n", status);
 	} else {
-		spin_unlock_irqrestore(&mxport->mxp_lock, flags);
+		mxport->mxp_shadow_mcr = mcr;
 	}
 
+	mutex_unlock(&mxport->mxp_mutex);
 
 	kfree(config);
 }
@@ -773,10 +772,14 @@ static int mxu1_tiocmget(struct tty_struct *tty)
 
 	dev_dbg(&port->dev, "%s\n", __func__);
 
+	mutex_lock(&mxport->mxp_mutex);
 	spin_lock_irqsave(&mxport->mxp_lock, flags);
+
 	msr = mxport->mxp_msr;
 	mcr = mxport->mxp_shadow_mcr;
+
 	spin_unlock_irqrestore(&mxport->mxp_lock, flags);
+	mutex_unlock(&mxport->mxp_mutex);
 
 	result = ((mcr & MXU1_MCR_DTR)	? TIOCM_DTR	: 0) |
 		 ((mcr & MXU1_MCR_RTS)	? TIOCM_RTS	: 0) |
@@ -796,12 +799,12 @@ static int mxu1_tiocmset(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct mxu1_port *mxport = usb_get_serial_port_data(port);
+	int err;
 	unsigned int mcr;
-	unsigned long flags;
 
 	dev_dbg(&port->dev, "%s\n", __func__);
 
-	spin_lock_irqsave(&mxport->mxp_lock, flags);
+	mutex_lock(&mxport->mxp_mutex);
 	mcr = mxport->mxp_shadow_mcr;
 
 	if (set & TIOCM_RTS)
@@ -818,9 +821,13 @@ static int mxu1_tiocmset(struct tty_struct *tty,
 	if (clear & TIOCM_LOOP)
 		mcr &= ~MXU1_MCR_LOOP;
 
-	spin_unlock_irqrestore(&mxport->mxp_lock, flags);
+	err = mxu1_set_mcr(port, mxport, mcr);
+	if (!err)
+		mxport->mxp_shadow_mcr = mcr;
 
-	return mxu1_set_mcr(port, mxport, mcr);
+	mutex_unlock(&mxport->mxp_mutex);
+
+	return err;
 }
 
 static void mxu1_break(struct tty_struct *tty, int break_state)
@@ -861,11 +868,6 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	dev_dbg(&port->dev, "%s - start interrupt in urb\n", __func__);
 	urb = port->interrupt_in_urb;
-	if (!urb) {
-		dev_err(&port->dev, "%s - no interrupt urb\n", __func__);
-		status = -EINVAL;
-		return status;
-	}
 	urb->context = mxdev;
 	status = usb_submit_urb(urb, GFP_KERNEL);
 	if (status) {
