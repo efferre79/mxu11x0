@@ -218,13 +218,12 @@ struct mxu1_firmware_header {
 
 struct mxu1_port {
 	u8 mxp_msr;
-	u8 mxp_lsr;
-	u8 mxp_shadow_mcr;
+	u8 mxp_mcr;
 	u8 mxp_uart_types;
 	u8 mxp_uart_mode;
 	struct usb_serial_port *mxp_port;
-	spinlock_t mxp_lock;
-	struct mutex mxp_mutex; /* Protects mxp_shadow_mcr */
+	spinlock_t mxp_lock;    /* Protects mxp_msr */
+	struct mutex mxp_mutex; /* Protects mxp_mcr */
 	int mxp_send_break;
 };
 
@@ -448,8 +447,7 @@ static int mxu1_startup(struct usb_serial *serial)
 	return 0;
 }
 
-static int mxu1_write_byte(struct usb_serial_port *port,
-			   struct mxu1_device *mxdev, u32 addr,
+static int mxu1_write_byte(struct usb_serial_port *port, u32 addr,
 			   u8 mask, u8 byte)
 {
 	int status;
@@ -472,7 +470,7 @@ static int mxu1_write_byte(struct usb_serial_port *port,
 	data->bData[0] = mask;
 	data->bData[1] = byte;
 
-	status = mxu1_send_ctrl_data_urb(mxdev->mxd_serial, MXU1_WRITE_DATA, 0,
+	status = mxu1_send_ctrl_data_urb(port->serial, MXU1_WRITE_DATA, 0,
 					 MXU1_RAM_PORT,
 					 (u8 *)data,
 					 size);
@@ -486,14 +484,10 @@ static int mxu1_write_byte(struct usb_serial_port *port,
 
 static int mxu1_set_mcr(struct usb_serial_port *port, unsigned int mcr)
 {
-	struct mxu1_device *mxdev;
 	int status;
 
-	mxdev = usb_get_serial_data(port->serial);
-
-	status = mxu1_write_byte(port, mxdev,
-				 MXU1_UART_BASE_ADDR +
-				 MXU1_UART_OFFSET_MCR,
+	status = mxu1_write_byte(port,
+				 MXU1_UART_BASE_ADDR + MXU1_UART_OFFSET_MCR,
 				 MXU1_MCR_RTS | MXU1_MCR_DTR | MXU1_MCR_LOOP,
 				 mcr);
 	return status;
@@ -621,7 +615,7 @@ static void mxu1_set_termios(struct tty_struct *tty,
 		dev_err(&port->dev, "cannot set config: %d\n", status);
 
 	mutex_lock(&mxport->mxp_mutex);
-	mcr = mxport->mxp_shadow_mcr;
+	mcr = mxport->mxp_mcr;
 
 	if (C_BAUD(tty) == B0)
 		mcr &= ~(MXU1_MCR_DTR | MXU1_MCR_RTS);
@@ -632,7 +626,7 @@ static void mxu1_set_termios(struct tty_struct *tty,
 	if (status)
 		dev_err(&port->dev, "cannot set modem control: %d\n", status);
 	else
-		mxport->mxp_shadow_mcr = mcr;
+		mxport->mxp_mcr = mcr;
 
 	mutex_unlock(&mxport->mxp_mutex);
 
@@ -775,7 +769,7 @@ static int mxu1_tiocmget(struct tty_struct *tty)
 	spin_lock_irqsave(&mxport->mxp_lock, flags);
 
 	msr = mxport->mxp_msr;
-	mcr = mxport->mxp_shadow_mcr;
+	mcr = mxport->mxp_mcr;
 
 	spin_unlock_irqrestore(&mxport->mxp_lock, flags);
 	mutex_unlock(&mxport->mxp_mutex);
@@ -804,7 +798,7 @@ static int mxu1_tiocmset(struct tty_struct *tty,
 	dev_dbg(&port->dev, "%s\n", __func__);
 
 	mutex_lock(&mxport->mxp_mutex);
-	mcr = mxport->mxp_shadow_mcr;
+	mcr = mxport->mxp_mcr;
 
 	if (set & TIOCM_RTS)
 		mcr |= MXU1_MCR_RTS;
@@ -822,7 +816,7 @@ static int mxu1_tiocmset(struct tty_struct *tty,
 
 	err = mxu1_set_mcr(port, mcr);
 	if (!err)
-		mxport->mxp_shadow_mcr = mcr;
+		mxport->mxp_mcr = mcr;
 
 	mutex_unlock(&mxport->mxp_mutex);
 
@@ -863,7 +857,7 @@ static int mxu1_open(struct tty_struct *tty, struct usb_serial_port *port)
 	dev = port->serial->dev;
 
 	mxport->mxp_msr = 0;
-	mxport->mxp_shadow_mcr |= MXU1_MCR_RTS | MXU1_MCR_DTR;
+	mxport->mxp_mcr |= MXU1_MCR_RTS | MXU1_MCR_DTR;
 
 	dev_dbg(&port->dev, "%s - start interrupt in urb\n", __func__);
 	urb = port->interrupt_in_urb;
@@ -976,7 +970,6 @@ static void mxu1_handle_new_msr(struct usb_serial_port *port,
 	dev_dbg(&port->dev, "%s - msr 0x%02X\n", __func__, msr);
 
 	if (msr & MXU1_MSR_DELTA_MASK) {
-		spin_lock_irqsave(&mxport->mxp_lock, flags);
 		icount = &mxport->mxp_port->icount;
 		if (msr & MXU1_MSR_DELTA_CTS)
 			icount->cts++;
@@ -988,10 +981,11 @@ static void mxu1_handle_new_msr(struct usb_serial_port *port,
 			icount->rng++;
 
 		wake_up_interruptible(&port->port.delta_msr_wait);
-		spin_unlock_irqrestore(&mxport->mxp_lock, flags);
 	}
 
+	spin_lock_irqsave(&mxport->mxp_lock, flags);
 	mxport->mxp_msr = msr & MXU1_MSR_MASK;
+	spin_unlock_irqrestore(&mxport->mxp_lock, flags);
 }
 
 static void mxu1_interrupt_callback(struct urb *urb)
