@@ -136,6 +136,8 @@
 #define MXU1_UART_232				0x00
 #define MXU1_UART_485_RECEIVER_DISABLED		0x01
 #define MXU1_UART_485_RECEIVER_ENABLED		0x02
+
+/* Supported operation types */
 #define MXU1_TYPE_RS232				BIT(0)
 #define MXU1_TYPE_RS422				BIT(1)
 #define MXU1_TYPE_RS485				BIT(2)
@@ -191,7 +193,8 @@ struct mxu1_write_data_bytes {
 #define MXU1_CODE_DATA_ERROR			0x03
 #define MXU1_CODE_MODEM_STATUS			0x04
 
-static inline int mxu1_get_func_from_code(unsigned char code) {
+static inline int mxu1_get_func_from_code(unsigned char code)
+{
 	return code & 0x0f;
 }
 
@@ -208,9 +211,10 @@ struct mxu1_firmware_header {
 #define MXU1_UART_OFFSET_MCR	    0x0004
 
 #define MXU1_BAUD_BASE              923077
+
 #define MXU1_TRANSFER_TIMEOUT	    2
 #define MXU1_DOWNLOAD_TIMEOUT       1000
-#define MXU1_DEFAULT_CLOSING_WAIT   4000		/* in .01 secs */
+#define MXU1_DEFAULT_CLOSING_WAIT   4000 /* in .01 secs */
 
 struct mxu1_port {
 	u8 mxp_msr;
@@ -296,7 +300,7 @@ static int mxu1_download_firmware(struct usb_serial *serial,
 	unsigned int pipe;
 
 	pipe = usb_sndbulkpipe(dev, serial->port[0]->
-			bulk_out_endpointAddress);
+				bulk_out_endpointAddress);
 
 	buffer_size = fw_p->size + sizeof(*header);
 	buffer = kmalloc(buffer_size, GFP_KERNEL);
@@ -480,8 +484,7 @@ static int mxu1_write_byte(struct usb_serial_port *port,
 	return status;
 }
 
-static int mxu1_set_mcr(struct usb_serial_port *port,
-			struct mxu1_port *mxport, unsigned int mcr)
+static int mxu1_set_mcr(struct usb_serial_port *port, unsigned int mcr)
 {
 	struct mxu1_device *mxdev;
 	int status;
@@ -582,7 +585,7 @@ static void mxu1_set_termios(struct tty_struct *tty,
 
 	if (C_CRTSCTS(tty)) {
 		/* RTS flow control must be off to drop RTS for baud rate B0 */
-		if ((cflag & CBAUD) != B0)
+		if (C_BAUD(tty) != B0)
 			config->wFlags |= MXU1_UART_ENABLE_RTS_IN;
 		config->wFlags |= MXU1_UART_ENABLE_CTS_OUT;
 	}
@@ -614,9 +617,8 @@ static void mxu1_set_termios(struct tty_struct *tty,
 	status = mxu1_send_ctrl_data_urb(port->serial, MXU1_SET_CONFIG, 0,
 					 MXU1_UART1_PORT, (u8 *)config,
 					 sizeof(*config));
-	if (status) {
+	if (status)
 		dev_err(&port->dev, "cannot set config: %d\n", status);
-	}
 
 	mutex_lock(&mxport->mxp_mutex);
 	mcr = mxport->mxp_shadow_mcr;
@@ -626,12 +628,11 @@ static void mxu1_set_termios(struct tty_struct *tty,
 	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
 		mcr |= ~(MXU1_MCR_DTR | MXU1_MCR_RTS);
 
-	status = mxu1_set_mcr(port, mxport, mcr);
-	if (status) {
+	status = mxu1_set_mcr(port, mcr);
+	if (status)
 		dev_err(&port->dev, "cannot set modem control: %d\n", status);
-	} else {
+	else
 		mxport->mxp_shadow_mcr = mcr;
-	}
 
 	mutex_unlock(&mxport->mxp_mutex);
 
@@ -745,11 +746,9 @@ static int mxu1_ioctl(struct tty_struct *tty,
 	case TIOCGSERIAL:
 		return mxu1_get_serial_info(mxport,
 					    (struct serial_struct __user *)arg);
-
 	case TIOCSSERIAL:
 		return mxu1_set_serial_info(mxport,
 					    (struct serial_struct __user *)arg);
-
 	case TIOCGRS485:
 		return mxu1_ioctl_get_rs485(mxport,
 					    (struct serial_rs485 __user *)arg);
@@ -821,7 +820,7 @@ static int mxu1_tiocmset(struct tty_struct *tty,
 	if (clear & TIOCM_LOOP)
 		mcr &= ~MXU1_MCR_LOOP;
 
-	err = mxu1_set_mcr(port, mxport, mcr);
+	err = mxu1_set_mcr(port, mcr);
 	if (!err)
 		mxport->mxp_shadow_mcr = mcr;
 
@@ -956,6 +955,8 @@ static void mxu1_close(struct usb_serial_port *port)
 {
 	int status;
 
+	dev_dbg(&port->dev, "%s\n", __func__);
+
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 
@@ -972,7 +973,7 @@ static void mxu1_handle_new_msr(struct usb_serial_port *port,
 	struct async_icount *icount;
 	unsigned long flags;
 
-	dev_dbg(&mxport->mxp_port->dev, "%s - msr 0x%02X\n", __func__, msr);
+	dev_dbg(&port->dev, "%s - msr 0x%02X\n", __func__, msr);
 
 	if (msr & MXU1_MSR_DELTA_MASK) {
 		spin_lock_irqsave(&mxport->mxp_lock, flags);
